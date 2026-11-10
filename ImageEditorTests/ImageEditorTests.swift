@@ -98,4 +98,87 @@ final class SelectionGeometryTests: XCTestCase {
         XCTAssertNil(resized)
     }
     
+    func testSelectionStoresPositionAndGeometry() {
+        
+        // Arrange
+        let geometry = SelectionGeometry(width: 200, height: 100)!
+        
+        let selection = Selection(x: 50, y: 75, geometry: geometry)
+        
+        // AssertDone
+        XCTAssertEqual(selection.x, 50)
+    }
+    
+}
+
+final class SelectionManagerTests: XCTestCase {
+    
+    func testCreateSelection() {
+        // Arrange
+        let manager = SelectionManager()
+        
+        // Act
+        manager.createSelection(x: 50, y: 75, width: 200, height: 100)
+        
+        // Assert
+        XCTAssertEqual(manager.selection?.x, 50)
+        XCTAssertEqual(manager.selection?.y, 75)
+        XCTAssertEqual(manager.selection?.geometry.width, 200)
+    }
+    
+    func testMoveSelection() {
+        // Arrange
+        let manager = SelectionManager()
+        
+        // Act
+        manager.createSelection(x: 50, y: 75, width: 200, height: 100)
+        
+        manager.moveSelection(toX: 100, y: 125)
+        
+        // Assert
+        XCTAssertEqual(manager.selection?.x, 100)
+        XCTAssertEqual(manager.selection?.y, 125)
+        XCTAssertEqual(manager.selection?.geometry.width, 200)
+        XCTAssertEqual(manager.selection?.geometry.height, 100)
+    }
+    
+    func testClearSelection() {
+        // Arrange
+        let manager = SelectionManager()
+        
+        // Act
+        manager.createSelection(x: 50, y: 75, width: 200, height: 100)
+        
+        manager.clearSelection()
+        
+        // Assert
+        XCTAssertNil(manager.selection)
+        
+    }
+    
+    func testMoveWithoutExistingSelection() {
+        // Arrange
+        let manager = SelectionManager()
+        
+        // Act
+        manager.moveSelection(toX: 100, y: 125)
+        
+        // Assert
+        XCTAssertNil(manager.selection)
+    }
+    
+    func testInvalidDimensionsDoNotReplaceExistingSelection() {
+        // Arrange
+        let manager = SelectionManager()
+        
+        manager.createSelection(x: 50, y: 75, width: 200, height: 100)
+        
+        // Act
+        manager.createSelection(x: 0, y: 0, width: -100, height: 100)
+        
+        // Assert
+        XCTAssertEqual(manager.selection?.x, 50)
+        XCTAssertEqual(manager.selection?.y, 75)
+        
+    }
 }
