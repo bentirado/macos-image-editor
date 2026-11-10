@@ -29,7 +29,7 @@ final class SelectionGeometryTests: XCTestCase {
         XCTAssertEqual(resized?.height, 100)
     }
     
-    func testRexizeRejectsZeroHeight() {
+    func testRejectsZeroHeight() {
         
         // Arrange
         let selection = SelectionGeometry(width: 200, height: 0)
@@ -56,7 +56,7 @@ final class SelectionGeometryTests: XCTestCase {
         XCTAssertNil(selection)
     }
     
-    func testRejectsInifiniteWidth() {
+    func testRejectsInfiniteWidth() {
          
         // Arrange
         let selection = SelectionGeometry(width: .infinity, height: 100)
@@ -65,7 +65,7 @@ final class SelectionGeometryTests: XCTestCase {
         XCTAssertNil(selection)
     }
     
-    func testRejeectsInfiniteResizeWidth() {
+    func testRejectsInfiniteResizeWidth() {
         
         // Arrange
         let selection = SelectionGeometry(width: 200, height: 100)!
@@ -89,10 +89,10 @@ final class SelectionGeometryTests: XCTestCase {
     func testRejectsNaNResizeWidth() {
         
         // Arrange
-        let selection = SelectionGeometry(width: 200, height: 100)
+        let selection = SelectionGeometry(width: 200, height: 100)!
         
         // Act
-        let resized = selection?.resized(toWidth: .nan, maintainAspectRatio: true)
+        let resized = selection.resized(toWidth: .nan, maintainAspectRatio: true)
         
         // Assert
         XCTAssertNil(resized)
@@ -107,6 +107,9 @@ final class SelectionGeometryTests: XCTestCase {
         
         // AssertDone
         XCTAssertEqual(selection.x, 50)
+        XCTAssertEqual(selection.y, 75)
+        XCTAssertEqual(selection.geometry.width, 200)
+        XCTAssertEqual(selection.geometry.height, 100)
     }
     
 }
@@ -180,5 +183,56 @@ final class SelectionManagerTests: XCTestCase {
         XCTAssertEqual(manager.selection?.x, 50)
         XCTAssertEqual(manager.selection?.y, 75)
         
+    }
+    
+    func testResizeSelectionMaintainsAspectRatio() {
+        // Arrange
+        let manager = SelectionManager()
+        
+        manager.createSelection(x: 50, y: 75, width: 200, height: 100)
+        
+        // Act
+        manager.resizeSelection(
+            toWidth: 300,
+            maintainAspectRatio: true
+        )
+        
+        // Assert
+        XCTAssertEqual(manager.selection?.x, 50)
+        XCTAssertEqual(manager.selection?.y, 75)
+        XCTAssertEqual(manager.selection?.geometry.width, 300)
+        XCTAssertEqual(manager.selection?.geometry.height, 150)
+
+    }
+    
+    func testResizeSelectionWithoutAspectRatio() {
+        // Arrange
+        let manager = SelectionManager()
+        
+        manager.createSelection(x: 50, y: 75, width: 200, height: 100)
+        
+        // Act
+        manager.resizeSelection(
+            toWidth: 300,
+            maintainAspectRatio: false
+        )
+        
+        // Assert
+        XCTAssertEqual(manager.selection?.geometry.width, 300)
+        XCTAssertEqual(manager.selection?.geometry.height, 100)
+    }
+    
+    func testResizeWithoutExistingSelection() {
+        // Arrange
+        let manager = SelectionManager()
+        
+        // Act
+        manager.resizeSelection(
+            toWidth: 300,
+            maintainAspectRatio: true
+        )
+        
+        // Assert
+        XCTAssertNil(manager.selection)
     }
 }

@@ -28,5 +28,18 @@ final class SelectionManager {
     func clearSelection() {
         selection = nil
     }
+    
+    func resizeSelection(
+        toWidth newWidth: Double,
+        maintainAspectRatio: Bool
+    ) {
+        guard let currentSelection = selection,
+              let resizedGeometry = currentSelection.geometry.resized(toWidth: newWidth, maintainAspectRatio: maintainAspectRatio) else {
+            return
+        }
+        
+        selection = Selection(x: currentSelection.x, y: currentSelection.y, geometry: resizedGeometry
+        )
+    }
 }
 
