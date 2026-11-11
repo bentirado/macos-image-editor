@@ -1,0 +1,21 @@
+name: macOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build and run tests
+        run: xcodebuild test -project ImageEditor.xcodeproj -scheme ImageEditor -destination 'platform=macOS'
