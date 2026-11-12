@@ -323,3 +323,69 @@ final class ImageLoaderTests: XCTestCase {
         )
     }
 }
+
+final class ImageDocumentControllerTests: XCTestCase {
+    
+    func testInitiallyHasNoDocument() {
+        let controller = ImageDocumentController()
+        
+        XCTAssertNil(controller.document)
+    }
+    
+    func testCanOpenDocument() {
+        let controller = ImageDocumentController()
+        
+        let image = NSImage(size: NSSize(width: 640, height: 430))
+        let url = URL(fileURLWithPath: "/tmp/test-image.png")
+        let document = ImageDocument(image: image, sourceURL: url)
+        
+        controller.open(document)
+        
+        XCTAssertNotNil(controller.document)
+        XCTAssertEqual(controller.document?.sourceURL, url)
+    }
+    
+    func testCanCloseDocument() {
+        let controller = ImageDocumentController()
+        
+        let image = NSImage(size: NSSize(width: 640, height: 480))
+        let url = URL(fileURLWithPath: "/tmp/test-image.png")
+        let document = ImageDocument(image: image, sourceURL: url)
+        
+        controller.open(document)
+        controller.close()
+        
+        XCTAssertNil(controller.document)
+    }
+    
+    func testCanLoadDocumentFromURL() throws {
+        let imageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("png")
+        
+        let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: 1,
+            pixelsHigh: 1,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )!
+        
+        let imageData = bitmap.representation(using: .png, properties: [:])!
+        try imageData.write(to: imageURL)
+        
+        defer {
+            try? FileManager.default.removeItem(at: imageURL)
+        }
+        
+        let controller = ImageDocumentController()
+        try controller.open(from: imageURL)
+        
+        XCTAssertEqual(controller.document?.sourceURL, imageURL)
+    }
+}
