@@ -271,3 +271,55 @@ final class ImageDocumentTests: XCTestCase {
         XCTAssertEqual(document.sourceURL, url)
     }
 }
+
+final class ImageLoaderTests: XCTestCase {
+    
+    func testLoadImageFromValidURL() throws {
+        let imageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("png")
+        
+        let bitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: 1,
+            pixelsHigh: 1,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        )!
+        
+        let imageData = bitmap.representation(using: .png, properties: [:])!
+        
+        try imageData.write(to: imageURL)
+        defer {
+            try? FileManager.default.removeItem(at: imageURL)
+        }
+        
+        let document = try ImageLoader.load(from: imageURL)
+        
+        XCTAssertEqual(document.sourceURL, imageURL)
+        XCTAssertEqual(document.image.size.width, 1)
+        XCTAssertEqual(document.image.size.height, 1)
+    }
+    
+    func testLoadImageFromInavidURLThrowsError() throws {
+        let imageURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathExtension("png")
+        
+        let invalidData = Data("This is not an image".utf8)
+        try invalidData.write(to: imageURL)
+        
+        defer {
+            try? FileManager.default.removeItem(at: imageURL)
+        }
+        
+        XCTAssertThrowsError(
+            try ImageLoader.load(from: imageURL)
+        )
+    }
+}
