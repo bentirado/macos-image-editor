@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import ImageEditor
 
 final class SelectionGeometryTests: XCTestCase {
@@ -234,5 +235,39 @@ final class SelectionManagerTests: XCTestCase {
         
         // Assert
         XCTAssertNil(manager.selection)
+    }
+}
+
+final class ImageDocumentTests: XCTestCase {
+    
+    func testImageDocumentStoresImage() {
+        let image = NSImage(
+            size: NSSize(width: 640, height: 480)
+        )
+        
+        let url = URL(fileURLWithPath: "/tmp/test-image.png")
+        
+        let document = ImageDocument(
+            image: image,
+            sourceURL: url
+        )
+        
+        XCTAssertEqual(document.image.size.width, 640)
+        XCTAssertEqual(document.image.size.height, 480)
+    }
+    
+    func testImageDocumentStoresSourceURL() {
+        let image = NSImage(
+            size: NSSize(width: 640, height: 480)
+        )
+        
+        let url = URL(fileURLWithPath: "/tmp/test-image.png")
+        
+        let document = ImageDocument(
+            image: image,
+            sourceURL: url
+        )
+        
+        XCTAssertEqual(document.sourceURL, url)
     }
 }
