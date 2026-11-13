@@ -2,6 +2,12 @@ import AppKit
 
 final class ImageCanvasView: NSView {
     
+    var image: NSImage? {
+        didSet {
+            needsDisplay = true
+        }
+    }
+    
     private let selectionManager = SelectionManager()
     private var dragStartPoint: NSPoint?
     
@@ -11,34 +17,61 @@ final class ImageCanvasView: NSView {
         NSColor.controlBackgroundColor.setFill()
         dirtyRect.fill()
         
-        guard let selection = selectionManager.selection else {
-            let message = "Click and drag to create a selection"
+        if let image = image {
+            let widthRatio = bounds.width / image.size.width
+            let heightRatio = bounds.height / image.size.height
             
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: NSFont.systemFont(ofSize: 16),
-                .foregroundColor: NSColor.secondaryLabelColor
-            ]
+            let scale = min(widthRatio, heightRatio, 1.0)
             
-            let size = message.size(withAttributes: attributes)
+            let scaledWidth = image.size.width * scale
+            let scaledHeight = image.size.height * scale
             
-            let point = NSPoint(
-                x: (bounds.width - size.width) / 2,
-                y: (bounds.height - size.height) / 2
-            )
+            let imageRect = NSRect(
+                x: (bounds.width - scaledWidth) / 2,
+                y: (bounds.height - scaledHeight) / 2,
+                width: scaledWidth,
+                height: scaledHeight
+                )
             
-            message.draw(at: point, withAttributes: attributes)
-            return
+            image.draw(
+                in: imageRect,
+                from: .zero,
+                operation: .sourceOver,
+                fraction: 1.0
+                )
         }
         
+        guard let selection = selectionManager.selection else {
+            if image == nil {
+                let message = "Open an image to get started"
+
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: NSFont.systemFont(ofSize: 16),
+                    .foregroundColor: NSColor.secondaryLabelColor
+                ]
+
+                let size = message.size(withAttributes: attributes)
+
+                let point = NSPoint(
+                    x: (bounds.width - size.width) / 2,
+                    y: (bounds.height - size.height) / 2
+                )
+
+                message.draw(at: point, withAttributes: attributes)
+            }
+
+            return
+        }
+
         let rect = NSRect(
             x: selection.x,
             y: selection.y,
             width: selection.geometry.width,
             height: selection.geometry.height
         )
-        
+
         let path = NSBezierPath(rect: rect)
-        
+
         NSColor.controlAccentColor.setStroke()
         path.lineWidth = 2
         path.stroke()
