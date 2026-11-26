@@ -11,7 +11,12 @@ final class ImageCanvasView: NSView {
     }
     
     private let selectionManager = SelectionManager()
-    private var dragStartPoint: CGPoint?
+    private enum DragOperation {
+        case create(startPoint: CGPoint)
+        case move(startPoint: CGPoint, selectionOrigin: CGPoint)
+    }
+
+    private var dragOperation: DragOperation?
 
     private var displayGeometry: ImageDisplayGeometry? {
         guard let image else {
@@ -99,12 +104,25 @@ final class ImageCanvasView: NSView {
     
     override func mouseDown(with event: NSEvent) {
         guard let geometry = displayGeometry else {
-            dragStartPoint = nil
+            dragOperation = nil
             return
         }
 
         let canvasPoint = convert(event.locationInWindow, from: nil)
-        dragStartPoint = geometry.imagePoint(fromCanvasPoint: canvasPoint)
+        guard let imagePoint = geometry.imagePoint(fromCanvasPoint: canvasPoint) else {
+            dragOperation = nil
+            return
+        }
+
+        if let selection = selectionManager.selection,
+           selection.contains(imagePoint: imagePoint) {
+            dragOperation = .move(
+                startPoint: imagePoint,
+                selectionOrigin: CGPoint(x: selection.x, y: selection.y)
+            )
+        } else {
+            dragOperation = .create(startPoint: imagePoint)
+        }
     }
     
     override func mouseDragged(with event: NSEvent) {
@@ -117,11 +135,11 @@ final class ImageCanvasView: NSView {
             return
         }
 
-        updateSelection(to: imagePoint)
+        updateSelection(to: imagePoint, using: geometry)
     }
     
     override func mouseUp(with event: NSEvent) {
-        defer { dragStartPoint = nil }
+        defer { dragOperation = nil }
 
         guard let geometry = displayGeometry else {
             return
@@ -132,31 +150,40 @@ final class ImageCanvasView: NSView {
             return
         }
 
-        updateSelection(to: imagePoint)
+        updateSelection(to: imagePoint, using: geometry)
     }
     
-    private func updateSelection(to currentPoint: CGPoint) {
-        guard let startPoint = dragStartPoint else {
+    private func updateSelection(to currentPoint: CGPoint, using geometry: ImageDisplayGeometry) {
+        guard let dragOperation else {
             return
         }
-        
-        let x = min(startPoint.x, currentPoint.x)
-        let y = min(startPoint.y, currentPoint.y)
 
-        let width = abs(currentPoint.x - startPoint.x)
-        let height = abs(currentPoint.y - startPoint.y)
-        
-        guard width > 0, height > 0 else {
-            return
+        switch dragOperation {
+        case let .create(startPoint):
+            let x = min(startPoint.x, currentPoint.x)
+            let y = min(startPoint.y, currentPoint.y)
+            let width = abs(currentPoint.x - startPoint.x)
+            let height = abs(currentPoint.y - startPoint.y)
+
+            guard width > 0, height > 0 else {
+                return
+            }
+
+            selectionManager.createSelection(
+                x: Double(x),
+                y: Double(y),
+                width: Double(width),
+                height: Double(height)
+            )
+        case let .move(startPoint, selectionOrigin):
+            selectionManager.moveSelection(
+                toX: Double(selectionOrigin.x + currentPoint.x - startPoint.x),
+                y: Double(selectionOrigin.y + currentPoint.y - startPoint.y),
+                clampedToImageWidth: geometry.imageWidth,
+                height: geometry.imageHeight
+            )
         }
-        
-        selectionManager.createSelection(
-            x: Double(x),
-            y: Double(y),
-            width: Double(width),
-            height: Double(height)
-        )
-        
+
         needsDisplay = true
     }
 }

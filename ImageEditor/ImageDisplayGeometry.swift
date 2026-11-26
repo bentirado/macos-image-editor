@@ -13,6 +13,8 @@ struct ImageDisplayGeometry {
     let width: Double
     let height: Double
     let scale: Double
+    let imageWidth: Double
+    let imageHeight: Double
 
     /// Calculates the centered display rectangle for an image.
     ///
@@ -48,6 +50,8 @@ struct ImageDisplayGeometry {
         let displayedHeight = imageHeight * scale
 
         self.scale = scale
+        self.imageWidth = imageWidth
+        self.imageHeight = imageHeight
         self.width = displayedWidth
         self.height = displayedHeight
 

@@ -24,6 +24,30 @@ final class SelectionManager {
         
         selection = Selection(x: x, y: y, geometry: currentSelection.geometry)
     }
+
+    /// Moves the selection while keeping its full boundary inside the image.
+    func moveSelection(
+        toX x: Double,
+        y: Double,
+        clampedToImageWidth imageWidth: Double,
+        height imageHeight: Double
+    ) {
+        guard let currentSelection = selection,
+              x.isFinite,
+              y.isFinite,
+              imageWidth.isFinite,
+              imageHeight.isFinite,
+              imageWidth > 0,
+              imageHeight > 0,
+              currentSelection.geometry.width <= imageWidth,
+              currentSelection.geometry.height <= imageHeight else {
+            return
+        }
+
+        let clampedX = min(max(x, 0), imageWidth - currentSelection.geometry.width)
+        let clampedY = min(max(y, 0), imageHeight - currentSelection.geometry.height)
+        selection = Selection(x: clampedX, y: clampedY, geometry: currentSelection.geometry)
+    }
     
     func clearSelection() {
         selection = nil

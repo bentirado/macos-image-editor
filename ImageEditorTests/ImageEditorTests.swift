@@ -2,6 +2,7 @@ import XCTest
 import AppKit
 @testable import ImageEditor
 
+/// Tests selection dimensions and boundary behavior.
 final class SelectionGeometryTests: XCTestCase {
 
     func testResizeMaintainsAspectRatio() {
@@ -112,9 +113,24 @@ final class SelectionGeometryTests: XCTestCase {
         XCTAssertEqual(selection.geometry.width, 200)
         XCTAssertEqual(selection.geometry.height, 100)
     }
+
+    /// Verifies that hit-testing includes the selection's edges.
+    func testSelectionContainsImagePointsWithinInclusiveBounds() {
+        let selection = Selection(
+            x: 50,
+            y: 75,
+            geometry: SelectionGeometry(width: 200, height: 100)!
+        )
+
+        XCTAssertTrue(selection.contains(imagePoint: CGPoint(x: 50, y: 75)))
+        XCTAssertTrue(selection.contains(imagePoint: CGPoint(x: 150, y: 125)))
+        XCTAssertTrue(selection.contains(imagePoint: CGPoint(x: 250, y: 175)))
+        XCTAssertFalse(selection.contains(imagePoint: CGPoint(x: 251, y: 175)))
+    }
     
 }
 
+/// Tests creating, moving, resizing, and clearing selection state.
 final class SelectionManagerTests: XCTestCase {
     
     func testCreateSelection() {
@@ -144,6 +160,40 @@ final class SelectionManagerTests: XCTestCase {
         XCTAssertEqual(manager.selection?.y, 125)
         XCTAssertEqual(manager.selection?.geometry.width, 200)
         XCTAssertEqual(manager.selection?.geometry.height, 100)
+    }
+
+    /// Verifies that moving a selection keeps it within image bounds.
+    func testMoveSelectionClampsToImageBounds() {
+        let manager = SelectionManager()
+        manager.createSelection(x: 50, y: 75, width: 200, height: 100)
+
+        manager.moveSelection(
+            toX: 500,
+            y: 400,
+            clampedToImageWidth: 300,
+            height: 250
+        )
+
+        XCTAssertEqual(manager.selection?.x, 100)
+        XCTAssertEqual(manager.selection?.y, 150)
+        XCTAssertEqual(manager.selection?.geometry.width, 200)
+        XCTAssertEqual(manager.selection?.geometry.height, 100)
+    }
+
+    /// Verifies that negative move positions clamp to the image origin.
+    func testMoveSelectionClampsToImageOrigin() {
+        let manager = SelectionManager()
+        manager.createSelection(x: 50, y: 75, width: 200, height: 100)
+
+        manager.moveSelection(
+            toX: -20,
+            y: -30,
+            clampedToImageWidth: 300,
+            height: 250
+        )
+
+        XCTAssertEqual(manager.selection?.x, 0)
+        XCTAssertEqual(manager.selection?.y, 0)
     }
     
     func testClearSelection() {
