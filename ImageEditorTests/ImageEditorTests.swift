@@ -30,6 +30,20 @@ final class SelectionGeometryTests: XCTestCase {
         XCTAssertEqual(resized?.width, 300)
         XCTAssertEqual(resized?.height, 100)
     }
+
+    /// Verifies that a ratio-locked resize fits inside the dragged dimensions.
+    func testResizeWithAspectRatioFitsWithinRequestedDimensions() {
+        let selection = SelectionGeometry(width: 200, height: 100)!
+
+        let resized = selection.resized(
+            toWidth: 500,
+            height: 200,
+            maintainAspectRatio: true
+        )
+
+        XCTAssertEqual(resized?.width, 400)
+        XCTAssertEqual(resized?.height, 200)
+    }
     
     func testRejectsZeroHeight() {
         
@@ -254,6 +268,19 @@ final class SelectionManagerTests: XCTestCase {
         XCTAssertEqual(manager.selection?.geometry.width, 300)
         XCTAssertEqual(manager.selection?.geometry.height, 150)
 
+    }
+
+    /// Verifies that resizing changes dimensions while preserving the origin.
+    func testResizeSelectionToDimensions() {
+        let manager = SelectionManager()
+        manager.createSelection(x: 50, y: 75, width: 200, height: 100)
+
+        manager.resizeSelection(toWidth: 300, height: 150)
+
+        XCTAssertEqual(manager.selection?.x, 50)
+        XCTAssertEqual(manager.selection?.y, 75)
+        XCTAssertEqual(manager.selection?.geometry.width, 300)
+        XCTAssertEqual(manager.selection?.geometry.height, 150)
     }
     
     func testResizeSelectionWithoutAspectRatio() {

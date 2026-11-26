@@ -20,8 +20,10 @@ final class ImageCanvasView: NSView {
     private enum DragOperation {
         case create(startPoint: CGPoint)
         case move(startPoint: CGPoint, selectionOrigin: CGPoint)
+        case resize(startPoint: CGPoint, originalWidth: Double, originalHeight: Double)
     }
 
+    private let resizeHandleSize: CGFloat = 8
     private var dragOperation: DragOperation?
 
     private var displayGeometry: ImageDisplayGeometry? {
@@ -106,6 +108,12 @@ final class ImageCanvasView: NSView {
         NSColor.controlAccentColor.setStroke()
         path.lineWidth = 2
         path.stroke()
+
+        let handleRect = resizeHandleRect(for: selection, using: geometry)
+        NSColor.controlBackgroundColor.setFill()
+        NSBezierPath(rect: handleRect).fill()
+        NSColor.controlAccentColor.setStroke()
+        NSBezierPath(rect: handleRect).stroke()
     }
     
     override func mouseDown(with event: NSEvent) {
@@ -120,12 +128,21 @@ final class ImageCanvasView: NSView {
             return
         }
 
-        if let selection = selectionManager.selection,
-           selection.contains(imagePoint: imagePoint) {
-            dragOperation = .move(
-                startPoint: imagePoint,
-                selectionOrigin: CGPoint(x: selection.x, y: selection.y)
-            )
+        if let selection = selectionManager.selection {
+            if resizeHandleRect(for: selection, using: geometry).contains(canvasPoint) {
+                dragOperation = .resize(
+                    startPoint: imagePoint,
+                    originalWidth: selection.geometry.width,
+                    originalHeight: selection.geometry.height
+                )
+            } else if selection.contains(imagePoint: imagePoint) {
+                dragOperation = .move(
+                    startPoint: imagePoint,
+                    selectionOrigin: CGPoint(x: selection.x, y: selection.y)
+                )
+            } else {
+                dragOperation = .create(startPoint: imagePoint)
+            }
         } else {
             dragOperation = .create(startPoint: imagePoint)
         }
@@ -141,7 +158,11 @@ final class ImageCanvasView: NSView {
             return
         }
 
-        updateSelection(to: imagePoint, using: geometry)
+        updateSelection(
+            to: imagePoint,
+            using: geometry,
+            maintainAspectRatio: event.modifierFlags.contains(.shift)
+        )
     }
     
     override func mouseUp(with event: NSEvent) {
@@ -156,10 +177,18 @@ final class ImageCanvasView: NSView {
             return
         }
 
-        updateSelection(to: imagePoint, using: geometry)
+        updateSelection(
+            to: imagePoint,
+            using: geometry,
+            maintainAspectRatio: event.modifierFlags.contains(.shift)
+        )
     }
     
-    private func updateSelection(to currentPoint: CGPoint, using geometry: ImageDisplayGeometry) {
+    private func updateSelection(
+        to currentPoint: CGPoint,
+        using geometry: ImageDisplayGeometry,
+        maintainAspectRatio: Bool
+    ) {
         guard let dragOperation else {
             return
         }
@@ -188,8 +217,47 @@ final class ImageCanvasView: NSView {
                 clampedToImageWidth: geometry.imageWidth,
                 height: geometry.imageHeight
             )
+        case let .resize(startPoint, originalWidth, originalHeight):
+            let proposedWidth = originalWidth + Double(currentPoint.x - startPoint.x)
+            let proposedHeight = originalHeight + Double(currentPoint.y - startPoint.y)
+
+            guard let originalGeometry = SelectionGeometry(
+                width: originalWidth,
+                height: originalHeight
+            ),
+            let resizedGeometry = originalGeometry.resized(
+                toWidth: proposedWidth,
+                height: proposedHeight,
+                maintainAspectRatio: maintainAspectRatio
+            ) else {
+                return
+            }
+
+            selectionManager.resizeSelection(
+                toWidth: resizedGeometry.width,
+                height: resizedGeometry.height
+            )
         }
 
         needsDisplay = true
+    }
+
+    private func resizeHandleRect(
+        for selection: Selection,
+        using geometry: ImageDisplayGeometry
+    ) -> NSRect {
+        let bottomRight = geometry.canvasPoint(
+            fromImagePoint: CGPoint(
+                x: selection.x + selection.geometry.width,
+                y: selection.y + selection.geometry.height
+            )
+        )
+
+        return NSRect(
+            x: bottomRight.x - resizeHandleSize / 2,
+            y: bottomRight.y - resizeHandleSize / 2,
+            width: resizeHandleSize,
+            height: resizeHandleSize
+        )
     }
 }

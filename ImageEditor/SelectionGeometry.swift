@@ -19,23 +19,42 @@ struct SelectionGeometry {
         maintainAspectRatio: Bool
     ) -> SelectionGeometry? {
 
-        // Reject invalid dimensions
-        guard newWidth > 0, newWidth.isFinite else {
+        let requestedHeight = maintainAspectRatio
+            ? newWidth / (width / height)
+            : height
+
+        return resized(
+            toWidth: newWidth,
+            height: requestedHeight,
+            maintainAspectRatio: maintainAspectRatio
+        )
+    }
+
+    /// Resizes the selection to fit within the requested dimensions.
+    /// When preserving the ratio, the resulting size is the largest that fits
+    /// inside the requested width and height.
+    func resized(
+        toWidth newWidth: Double,
+        height newHeight: Double,
+        maintainAspectRatio: Bool
+    ) -> SelectionGeometry? {
+
+        guard newWidth > 0,
+              newHeight > 0,
+              newWidth.isFinite,
+              newHeight.isFinite else {
             return nil
         }
-        
-        // Resize without preserving aspect ratio
+
         guard maintainAspectRatio else {
-            return SelectionGeometry(width: newWidth, height: height)
+            return SelectionGeometry(width: newWidth, height: newHeight)
         }
 
-        // Calculate new dimensions
-        let aspectRatio = width / height
-        let newHeight = newWidth / aspectRatio
+        let scale = min(newWidth / width, newHeight / height)
 
         return SelectionGeometry(	
-            width: newWidth,
-            height: newHeight
+            width: width * scale,
+            height: height * scale
         )
     }
 }

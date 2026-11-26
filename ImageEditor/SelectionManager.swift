@@ -65,5 +65,23 @@ final class SelectionManager {
         selection = Selection(x: currentSelection.x, y: currentSelection.y, geometry: resizedGeometry
         )
     }
+
+    /// Updates the selection dimensions while preserving its image-space origin.
+    func resizeSelection(toWidth newWidth: Double, height newHeight: Double) {
+        guard let currentSelection = selection,
+              let resizedGeometry = currentSelection.geometry.resized(
+                toWidth: newWidth,
+                height: newHeight,
+                maintainAspectRatio: false
+              ) else {
+            return
+        }
+
+        selection = Selection(
+            x: currentSelection.x,
+            y: currentSelection.y,
+            geometry: resizedGeometry
+        )
+    }
 }
 
