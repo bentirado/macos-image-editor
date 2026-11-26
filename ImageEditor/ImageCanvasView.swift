@@ -9,6 +9,12 @@ final class ImageCanvasView: NSView {
             needsDisplay = true
         }
     }
+
+    var imagePixelSize: CGSize? {
+        didSet {
+            needsDisplay = true
+        }
+    }
     
     private let selectionManager = SelectionManager()
     private enum DragOperation {
@@ -19,15 +25,15 @@ final class ImageCanvasView: NSView {
     private var dragOperation: DragOperation?
 
     private var displayGeometry: ImageDisplayGeometry? {
-        guard let image else {
+        guard image != nil, let imagePixelSize else {
             return nil
         }
 
         return ImageDisplayGeometry(
             canvasWidth: bounds.width,
             canvasHeight: bounds.height,
-            imageWidth: image.size.width,
-            imageHeight: image.size.height
+            imageWidth: imagePixelSize.width,
+            imageHeight: imagePixelSize.height
         )
     }
     

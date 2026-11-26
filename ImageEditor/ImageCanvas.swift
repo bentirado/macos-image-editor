@@ -11,6 +11,7 @@ struct ImageCanvas: NSViewRepresentable {
     
     func updateNSView(_ nsView: ImageCanvasView, context: Context) {
         nsView.image = document?.image
+        nsView.imagePixelSize = document?.pixelSize
     }
     
 }

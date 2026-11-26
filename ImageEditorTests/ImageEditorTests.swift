@@ -288,6 +288,7 @@ final class SelectionManagerTests: XCTestCase {
     }
 }
 
+/// Tests image document metadata and coordinate dimensions.
 final class ImageDocumentTests: XCTestCase {
     
     func testImageDocumentStoresImage() {
@@ -319,6 +320,54 @@ final class ImageDocumentTests: XCTestCase {
         )
         
         XCTAssertEqual(document.sourceURL, url)
+    }
+
+    /// Verifies that pixel dimensions come from the largest bitmap
+    /// representation instead of the image's logical point size.
+    func testPixelSizeUsesLargestBitmapRepresentation() {
+        let image = NSImage(size: NSSize(width: 300, height: 200))
+        func makeBitmap(width: Int, height: Int) -> NSBitmapImageRep? {
+            NSBitmapImageRep(
+                bitmapDataPlanes: nil,
+                pixelsWide: width,
+                pixelsHigh: height,
+                bitsPerSample: 8,
+                samplesPerPixel: 4,
+                hasAlpha: true,
+                isPlanar: false,
+                colorSpaceName: .deviceRGB,
+                bytesPerRow: 0,
+                bitsPerPixel: 0
+            )
+        }
+
+        guard let standardBitmap = makeBitmap(width: 300, height: 200),
+              let highResolutionBitmap = makeBitmap(width: 600, height: 400) else {
+            XCTFail("Expected to create bitmap representations")
+            return
+        }
+        standardBitmap.size = NSSize(width: 300, height: 200)
+        highResolutionBitmap.size = NSSize(width: 300, height: 200)
+        image.addRepresentation(standardBitmap)
+        image.addRepresentation(highResolutionBitmap)
+
+        let document = ImageDocument(
+            image: image,
+            sourceURL: URL(fileURLWithPath: "/tmp/retina-image.png")
+        )
+
+        XCTAssertEqual(document.pixelSize, CGSize(width: 600, height: 400))
+    }
+
+    /// Verifies that images without bitmap representations use their image size.
+    func testPixelSizeFallsBackToImageSizeWithoutBitmapRepresentation() {
+        let image = NSImage(size: NSSize(width: 320, height: 240))
+        let document = ImageDocument(
+            image: image,
+            sourceURL: URL(fileURLWithPath: "/tmp/vector-image.pdf")
+        )
+
+        XCTAssertEqual(document.pixelSize, CGSize(width: 320, height: 240))
     }
 }
 
