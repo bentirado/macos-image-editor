@@ -83,5 +83,24 @@ final class SelectionManager {
             geometry: resizedGeometry
         )
     }
+
+    /// Resizes from a corner relative to the selection at the start of the drag.
+    func resizeSelection(
+        from corner: SelectionCorner,
+        startingFrom originalSelection: Selection,
+        to point: CGPoint,
+        maintainAspectRatio: Bool
+    ) {
+        guard selection != nil,
+              let resizedSelection = originalSelection.resized(
+                from: corner,
+                to: point,
+                maintainAspectRatio: maintainAspectRatio
+              ) else {
+            return
+        }
+
+        selection = resizedSelection
+    }
 }
 

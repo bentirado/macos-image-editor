@@ -20,7 +20,7 @@ final class ImageCanvasView: NSView {
     private enum DragOperation {
         case create(startPoint: CGPoint)
         case move(startPoint: CGPoint, selectionOrigin: CGPoint)
-        case resize(startPoint: CGPoint, originalWidth: Double, originalHeight: Double)
+        case resize(corner: SelectionCorner, startPoint: CGPoint, originalSelection: Selection)
     }
 
     private let resizeHandleSize: CGFloat = 8
@@ -109,11 +109,13 @@ final class ImageCanvasView: NSView {
         path.lineWidth = 2
         path.stroke()
 
-        let handleRect = resizeHandleRect(for: selection, using: geometry)
-        NSColor.controlBackgroundColor.setFill()
-        NSBezierPath(rect: handleRect).fill()
-        NSColor.controlAccentColor.setStroke()
-        NSBezierPath(rect: handleRect).stroke()
+        for corner in SelectionCorner.allCases {
+            let handleRect = resizeHandleRect(for: selection, at: corner, using: geometry)
+            NSColor.controlBackgroundColor.setFill()
+            NSBezierPath(rect: handleRect).fill()
+            NSColor.controlAccentColor.setStroke()
+            NSBezierPath(rect: handleRect).stroke()
+        }
     }
     
     override func mouseDown(with event: NSEvent) {
@@ -129,12 +131,8 @@ final class ImageCanvasView: NSView {
         }
 
         if let selection = selectionManager.selection {
-            if resizeHandleRect(for: selection, using: geometry).contains(canvasPoint) {
-                dragOperation = .resize(
-                    startPoint: imagePoint,
-                    originalWidth: selection.geometry.width,
-                    originalHeight: selection.geometry.height
-                )
+            if let corner = resizeCorner(at: canvasPoint, for: selection, using: geometry) {
+                dragOperation = .resize(corner: corner, startPoint: imagePoint, originalSelection: selection)
             } else if selection.contains(imagePoint: imagePoint) {
                 dragOperation = .move(
                     startPoint: imagePoint,
@@ -217,25 +215,17 @@ final class ImageCanvasView: NSView {
                 clampedToImageWidth: geometry.imageWidth,
                 height: geometry.imageHeight
             )
-        case let .resize(startPoint, originalWidth, originalHeight):
-            let proposedWidth = originalWidth + Double(currentPoint.x - startPoint.x)
-            let proposedHeight = originalHeight + Double(currentPoint.y - startPoint.y)
-
-            guard let originalGeometry = SelectionGeometry(
-                width: originalWidth,
-                height: originalHeight
-            ),
-            let resizedGeometry = originalGeometry.resized(
-                toWidth: proposedWidth,
-                height: proposedHeight,
-                maintainAspectRatio: maintainAspectRatio
-            ) else {
-                return
-            }
-
+        case let .resize(corner, startPoint, originalSelection):
+            let originalCorner = originalSelection.point(at: corner)
+            let resizedCorner = CGPoint(
+                x: originalCorner.x + currentPoint.x - startPoint.x,
+                y: originalCorner.y + currentPoint.y - startPoint.y
+            )
             selectionManager.resizeSelection(
-                toWidth: resizedGeometry.width,
-                height: resizedGeometry.height
+                from: corner,
+                startingFrom: originalSelection,
+                to: resizedCorner,
+                maintainAspectRatio: maintainAspectRatio
             )
         }
 
@@ -244,20 +234,45 @@ final class ImageCanvasView: NSView {
 
     private func resizeHandleRect(
         for selection: Selection,
+        at corner: SelectionCorner,
         using geometry: ImageDisplayGeometry
     ) -> NSRect {
-        let bottomRight = geometry.canvasPoint(
-            fromImagePoint: CGPoint(
-                x: selection.x + selection.geometry.width,
-                y: selection.y + selection.geometry.height
-            )
-        )
+        let handleCenter = geometry.canvasPoint(fromImagePoint: selection.point(at: corner))
 
         return NSRect(
-            x: bottomRight.x - resizeHandleSize / 2,
-            y: bottomRight.y - resizeHandleSize / 2,
+            x: handleCenter.x - resizeHandleSize / 2,
+            y: handleCenter.y - resizeHandleSize / 2,
             width: resizeHandleSize,
             height: resizeHandleSize
         )
+    }
+
+    private func resizeCorner(
+        at canvasPoint: CGPoint,
+        for selection: Selection,
+        using geometry: ImageDisplayGeometry
+    ) -> SelectionCorner? {
+        var nearestCorner: (corner: SelectionCorner, distance: CGFloat)?
+
+        for corner in SelectionCorner.allCases {
+            let handleRect = resizeHandleRect(for: selection, at: corner, using: geometry)
+            guard handleRect.contains(canvasPoint) else {
+                continue
+            }
+
+            let deltaX = canvasPoint.x - handleRect.midX
+            let deltaY = canvasPoint.y - handleRect.midY
+            let distance = deltaX * deltaX + deltaY * deltaY
+
+            if let currentNearest = nearestCorner {
+                if distance < currentNearest.distance {
+                    nearestCorner = (corner, distance)
+                }
+            } else {
+                nearestCorner = (corner, distance)
+            }
+        }
+
+        return nearestCorner?.corner
     }
 }

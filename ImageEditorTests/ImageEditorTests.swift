@@ -141,6 +141,103 @@ final class SelectionGeometryTests: XCTestCase {
         XCTAssertTrue(selection.contains(imagePoint: CGPoint(x: 250, y: 175)))
         XCTAssertFalse(selection.contains(imagePoint: CGPoint(x: 251, y: 175)))
     }
+
+    /// Verifies that resizing from the top-left keeps the opposite corner fixed.
+    func testResizeFromTopLeftKeepsBottomRightAnchorFixed() {
+        let selection = Selection(
+            x: 40,
+            y: 30,
+            geometry: SelectionGeometry(width: 80, height: 40)!
+        )
+
+        let resized = selection.resized(
+            from: .topLeft,
+            to: CGPoint(x: 20, y: 10),
+            maintainAspectRatio: false
+        )
+
+        XCTAssertEqual(resized?.x, 20)
+        XCTAssertEqual(resized?.y, 10)
+        XCTAssertEqual(resized?.geometry.width, 100)
+        XCTAssertEqual(resized?.geometry.height, 60)
+    }
+
+    /// Verifies that resizing from the top-right keeps the opposite corner fixed.
+    func testResizeFromTopRightKeepsBottomLeftAnchorFixed() {
+        let selection = Selection(
+            x: 40,
+            y: 30,
+            geometry: SelectionGeometry(width: 80, height: 40)!
+        )
+
+        let resized = selection.resized(
+            from: .topRight,
+            to: CGPoint(x: 150, y: 10),
+            maintainAspectRatio: false
+        )
+
+        XCTAssertEqual(resized?.x, 40)
+        XCTAssertEqual(resized?.y, 10)
+        XCTAssertEqual(resized?.geometry.width, 110)
+        XCTAssertEqual(resized?.geometry.height, 60)
+    }
+
+    /// Verifies that Shift-style ratio locking preserves the opposite corner.
+    func testRatioLockedCornerResizeKeepsOppositeCornerFixed() {
+        let selection = Selection(
+            x: 40,
+            y: 30,
+            geometry: SelectionGeometry(width: 80, height: 40)!
+        )
+
+        let resized = selection.resized(
+            from: .topRight,
+            to: CGPoint(x: 160, y: 0),
+            maintainAspectRatio: true
+        )
+
+        XCTAssertEqual(resized?.x, 40)
+        XCTAssertEqual(resized?.y, 10)
+        XCTAssertEqual(resized?.geometry.width, 120)
+        XCTAssertEqual(resized?.geometry.height, 60)
+    }
+
+    /// Verifies that resizing from the bottom-left keeps the opposite corner fixed.
+    func testResizeFromBottomLeftKeepsTopRightAnchorFixed() {
+        let selection = Selection(
+            x: 40,
+            y: 30,
+            geometry: SelectionGeometry(width: 80, height: 40)!
+        )
+
+        let resized = selection.resized(
+            from: .bottomLeft,
+            to: CGPoint(x: 20, y: 100),
+            maintainAspectRatio: false
+        )
+
+        XCTAssertEqual(resized?.x, 20)
+        XCTAssertEqual(resized?.y, 30)
+        XCTAssertEqual(resized?.geometry.width, 100)
+        XCTAssertEqual(resized?.geometry.height, 70)
+    }
+
+    /// Verifies that resizing rejects crossing the fixed opposite corner.
+    func testResizeRejectsCrossingOppositeCorner() {
+        let selection = Selection(
+            x: 40,
+            y: 30,
+            geometry: SelectionGeometry(width: 80, height: 40)!
+        )
+
+        XCTAssertNil(
+            selection.resized(
+                from: .bottomRight,
+                to: CGPoint(x: 20, y: 100),
+                maintainAspectRatio: false
+            )
+        )
+    }
     
 }
 
