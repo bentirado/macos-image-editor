@@ -38,6 +38,7 @@ final class EditableImage {
     ) -> Bool {
         guard source.numberOfPlanes > 0,
               source.numberOfPlanes == destination.numberOfPlanes,
+              source.bytesPerPlane == destination.bytesPerPlane,
               source.numberOfPlanes <= 5 else {
             return false
         }
