@@ -495,6 +495,99 @@ final class ImageDocumentTests: XCTestCase {
     }
 }
 
+/// Tests the independent bitmap storage used for image editing.
+final class EditableImageTests: XCTestCase {
+
+    /// Verifies that an editable image copies pixels instead of sharing the source bitmap.
+    func testCreatesIndependentBitmapCopy() {
+        let image = NSImage(size: NSSize(width: 2, height: 1))
+        guard let sourceBitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: 2,
+            pixelsHigh: 1,
+            bitsPerSample: 8,
+            samplesPerPixel: 4,
+            hasAlpha: true,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            XCTFail("Expected to create a source bitmap")
+            return
+        }
+        sourceBitmap.size = image.size
+        sourceBitmap.setColor(NSColor(calibratedRed: 1, green: 0, blue: 0, alpha: 1), atX: 0, y: 0)
+        image.addRepresentation(sourceBitmap)
+        let document = ImageDocument(
+            image: image,
+            sourceURL: URL(fileURLWithPath: "/tmp/editable-image.png")
+        )
+
+        guard let editableImage = EditableImage(document: document) else {
+            XCTFail("Expected an editable bitmap copy")
+            return
+        }
+
+        func deviceRGBColor(_ color: NSColor?) -> NSColor? {
+            color?.usingColorSpace(.deviceRGB)
+        }
+
+        XCTAssertEqual(editableImage.pixelSize, CGSize(width: 2, height: 1))
+        XCTAssertFalse(editableImage.bitmap === sourceBitmap)
+        XCTAssertEqual(
+            deviceRGBColor(editableImage.bitmap.colorAt(x: 0, y: 0)),
+            deviceRGBColor(sourceBitmap.colorAt(x: 0, y: 0))
+        )
+
+        editableImage.bitmap.setColor(NSColor(calibratedRed: 0, green: 0, blue: 1, alpha: 1), atX: 0, y: 0)
+
+        XCTAssertNotEqual(
+            deviceRGBColor(editableImage.bitmap.colorAt(x: 0, y: 0)),
+            deviceRGBColor(sourceBitmap.colorAt(x: 0, y: 0))
+        )
+    }
+
+    /// Verifies that planar bitmap data is copied plane by plane.
+    func testCreatesIndependentCopyOfPlanarBitmap() {
+        let image = NSImage(size: NSSize(width: 2, height: 1))
+        guard let sourceBitmap = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: 2,
+            pixelsHigh: 1,
+            bitsPerSample: 8,
+            samplesPerPixel: 3,
+            hasAlpha: false,
+            isPlanar: true,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ) else {
+            XCTFail("Expected to create a planar source bitmap")
+            return
+        }
+        sourceBitmap.size = image.size
+        sourceBitmap.setColor(NSColor(calibratedRed: 0, green: 1, blue: 0, alpha: 1), atX: 1, y: 0)
+        image.addRepresentation(sourceBitmap)
+        let document = ImageDocument(
+            image: image,
+            sourceURL: URL(fileURLWithPath: "/tmp/planar-image.tiff")
+        )
+
+        guard let editableImage = EditableImage(document: document) else {
+            XCTFail("Expected an editable copy of the planar bitmap")
+            return
+        }
+
+        XCTAssertTrue(editableImage.bitmap.isPlanar)
+        XCTAssertFalse(editableImage.bitmap === sourceBitmap)
+        XCTAssertEqual(
+            editableImage.bitmap.colorAt(x: 1, y: 0)?.usingColorSpace(.deviceRGB),
+            sourceBitmap.colorAt(x: 1, y: 0)?.usingColorSpace(.deviceRGB)
+        )
+    }
+}
+
 final class ImageLoaderTests: XCTestCase {
     
     func testLoadImageFromValidURL() throws {
