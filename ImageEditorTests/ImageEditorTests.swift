@@ -586,6 +586,84 @@ final class EditableImageTests: XCTestCase {
             sourceBitmap.colorAt(x: 1, y: 0)?.usingColorSpace(.deviceRGB)
         )
     }
+
+    /// Verifies that a moved pixel region clears its source and safely handles overlap.
+    func testMovePixelsHandlesOverlappingDestinationAndPreservesSourceImage() throws {
+        let (document, sourceBitmap) = try makeDocumentBitmap(width: 4, height: 2, hasAlpha: true)
+        let red = NSColor(calibratedRed: 1, green: 0, blue: 0, alpha: 1)
+        let green = NSColor(calibratedRed: 0, green: 1, blue: 0, alpha: 1)
+        sourceBitmap.setColor(red, atX: 0, y: 0)
+        sourceBitmap.setColor(green, atX: 1, y: 0)
+        let editableImage = try XCTUnwrap(EditableImage(document: document))
+        let selection = Selection(x: 0, y: 0, geometry: try XCTUnwrap(SelectionGeometry(width: 2, height: 1)))
+
+        let offset = editableImage.movePixels(in: selection, byX: 1, byY: 0)
+
+        XCTAssertEqual(offset, PixelOffset(x: 1, y: 0))
+        XCTAssertEqual(try XCTUnwrap(editableImage.bitmap.colorAt(x: 0, y: 0)).alphaComponent, 0)
+        XCTAssertEqual(try XCTUnwrap(editableImage.bitmap.colorAt(x: 1, y: 0)).usingColorSpace(.deviceRGB)?.redComponent, 1)
+        XCTAssertEqual(try XCTUnwrap(editableImage.bitmap.colorAt(x: 2, y: 0)).usingColorSpace(.deviceRGB)?.greenComponent, 1)
+        XCTAssertEqual(try XCTUnwrap(sourceBitmap.colorAt(x: 0, y: 0)).usingColorSpace(.deviceRGB)?.redComponent, 1)
+    }
+
+    /// Verifies that a moved region is clamped so it remains within the bitmap.
+    func testMovePixelsClampsDestinationToBitmapBounds() throws {
+        let (document, sourceBitmap) = try makeDocumentBitmap(width: 4, height: 3, hasAlpha: true)
+        sourceBitmap.setColor(NSColor(calibratedRed: 1, green: 0, blue: 0, alpha: 1), atX: 0, y: 0)
+        let editableImage = try XCTUnwrap(EditableImage(document: document))
+        let selection = Selection(x: 0, y: 0, geometry: try XCTUnwrap(SelectionGeometry(width: 2, height: 1)))
+
+        let offset = editableImage.movePixels(in: selection, byX: 20, byY: 20)
+
+        XCTAssertEqual(offset, PixelOffset(x: 2, y: 2))
+        XCTAssertEqual(try XCTUnwrap(editableImage.bitmap.colorAt(x: 2, y: 2)).usingColorSpace(.deviceRGB)?.redComponent, 1)
+        XCTAssertEqual(try XCTUnwrap(editableImage.bitmap.colorAt(x: 0, y: 0)).alphaComponent, 0)
+    }
+
+    /// Verifies that moving pixels from an opaque source adds transparency only to the editable copy.
+    func testMovePixelsAddsAlphaForOpaqueSource() throws {
+        let (document, sourceBitmap) = try makeDocumentBitmap(width: 2, height: 1, hasAlpha: false)
+        sourceBitmap.setColor(NSColor(calibratedRed: 1, green: 0, blue: 0, alpha: 1), atX: 0, y: 0)
+        let editableImage = try XCTUnwrap(EditableImage(document: document))
+        let selection = Selection(x: 0, y: 0, geometry: try XCTUnwrap(SelectionGeometry(width: 1, height: 1)))
+
+        let offset = editableImage.movePixels(in: selection, byX: 1, byY: 0)
+
+        XCTAssertEqual(offset, PixelOffset(x: 1, y: 0))
+        XCTAssertTrue(editableImage.bitmap.hasAlpha)
+        XCTAssertEqual(try XCTUnwrap(editableImage.bitmap.colorAt(x: 0, y: 0)).alphaComponent, 0)
+        XCTAssertEqual(try XCTUnwrap(editableImage.bitmap.colorAt(x: 1, y: 0)).usingColorSpace(.deviceRGB)?.redComponent, 1)
+        XCTAssertFalse(sourceBitmap.hasAlpha)
+        XCTAssertEqual(try XCTUnwrap(sourceBitmap.colorAt(x: 0, y: 0)).usingColorSpace(.deviceRGB)?.redComponent, 1)
+    }
+
+    private func makeDocumentBitmap(
+        width: Int,
+        height: Int,
+        hasAlpha: Bool
+    ) throws -> (ImageDocument, NSBitmapImageRep) {
+        let image = NSImage(size: NSSize(width: width, height: height))
+        let samplesPerPixel = hasAlpha ? 4 : 3
+        let bitmap = try XCTUnwrap(NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: width,
+            pixelsHigh: height,
+            bitsPerSample: 8,
+            samplesPerPixel: samplesPerPixel,
+            hasAlpha: hasAlpha,
+            isPlanar: false,
+            colorSpaceName: .deviceRGB,
+            bytesPerRow: 0,
+            bitsPerPixel: 0
+        ))
+        bitmap.size = image.size
+        image.addRepresentation(bitmap)
+
+        return (
+            ImageDocument(image: image, sourceURL: URL(fileURLWithPath: "/tmp/pixel-move.png")),
+            bitmap
+        )
+    }
 }
 
 final class ImageLoaderTests: XCTestCase {
